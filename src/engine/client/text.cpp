@@ -33,7 +33,7 @@ struct SFontSizeChar
 	float m_AdvanceX;
 
 	float m_aUVs[4];
-	int64 m_TouchTime;
+	int64_t m_TouchTime;
 	FT_UInt m_GlyphIndex;
 };
 
@@ -877,8 +877,8 @@ public:
 		FakeToScreenX = (Graphics()->ScreenWidth() / (ScreenX1 - ScreenX0));
 		FakeToScreenY = (Graphics()->ScreenHeight() / (ScreenY1 - ScreenY0));
 
-		int ActualX = (int)(pCursor->m_X * FakeToScreenX);
-		int ActualY = (int)(pCursor->m_Y * FakeToScreenY);
+		int ActualX = (int)((pCursor->m_X * FakeToScreenX) + 0.5f);
+		int ActualY = (int)((pCursor->m_Y * FakeToScreenY) + 0.5f);
 		CursorX = ActualX / FakeToScreenX;
 		CursorY = ActualY / FakeToScreenY;
 
@@ -1004,8 +1004,8 @@ public:
 					DrawY += Size;
 					if((m_RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGMENT) == 0)
 					{
-						DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
-						DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
+						DrawX = (int)((DrawX * FakeToScreenX) + 0.5f) / FakeToScreenX; // realign
+						DrawY = (int)((DrawY * FakeToScreenY) + 0.5f) / FakeToScreenY;
 					}
 					++LineCount;
 					if(pCursor->m_MaxLines > 0 && LineCount > pCursor->m_MaxLines)
@@ -1082,8 +1082,8 @@ public:
 				DrawY += Size;
 				if((m_RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGMENT) == 0)
 				{
-					DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
-					DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
+					DrawX = (int)((DrawX * FakeToScreenX) + 0.5f) / FakeToScreenX; // realign
+					DrawY = (int)((DrawY * FakeToScreenY) + 0.5f) / FakeToScreenY;
 				}
 				GotNewLine = 1;
 				GotNewLineLast = 1;
@@ -1149,8 +1149,8 @@ public:
 		FakeToScreenX = (Graphics()->ScreenWidth() / (ScreenX1 - ScreenX0));
 		FakeToScreenY = (Graphics()->ScreenHeight() / (ScreenY1 - ScreenY0));
 
-		int ActualX = (int)(pCursor->m_X * FakeToScreenX);
-		int ActualY = (int)(pCursor->m_Y * FakeToScreenY);
+		int ActualX = (int)((pCursor->m_X * FakeToScreenX) + 0.5f);
+		int ActualY = (int)((pCursor->m_Y * FakeToScreenY) + 0.5f);
 
 		TextContainer.m_AlignedStartX = ActualX / FakeToScreenX;
 		TextContainer.m_AlignedStartY = ActualY / FakeToScreenY;
@@ -1228,8 +1228,8 @@ public:
 		FakeToScreenX = (Graphics()->ScreenWidth() / (ScreenX1 - ScreenX0));
 		FakeToScreenY = (Graphics()->ScreenHeight() / (ScreenY1 - ScreenY0));
 
-		int ActualX = (int)(pCursor->m_X * FakeToScreenX);
-		int ActualY = (int)(pCursor->m_Y * FakeToScreenY);
+		int ActualX = (int)((pCursor->m_X * FakeToScreenX) + 0.5f);
+		int ActualY = (int)((pCursor->m_Y * FakeToScreenY) + 0.5f);
 		CursorX = ActualX / FakeToScreenX;
 		CursorY = ActualY / FakeToScreenY;
 
@@ -1329,8 +1329,8 @@ public:
 					DrawY += Size;
 					if((RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGMENT) == 0)
 					{
-						DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
-						DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
+						DrawX = (int)((DrawX * FakeToScreenX) + 0.5f) / FakeToScreenX; // realign
+						DrawY = (int)((DrawY * FakeToScreenY) + 0.5f) / FakeToScreenY;
 					}
 					++LineCount;
 					if(pCursor->m_MaxLines > 0 && LineCount > pCursor->m_MaxLines)
@@ -1438,8 +1438,8 @@ public:
 				DrawY += Size;
 				if((RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGMENT) == 0)
 				{
-					DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
-					DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
+					DrawX = (int)((DrawX * FakeToScreenX) + 0.5f) / FakeToScreenX; // realign
+					DrawY = (int)((DrawY * FakeToScreenY) + 0.5f) / FakeToScreenY;
 				}
 				GotNewLine = 1;
 				GotNewLineLast = 1;
@@ -1627,8 +1627,8 @@ public:
 					DrawY += Size;
 					if((RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGMENT) == 0)
 					{
-						DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
-						DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
+						DrawX = (int)((DrawX * FakeToScreenX) + 0.5f) / FakeToScreenX; // realign
+						DrawY = (int)((DrawY * FakeToScreenY) + 0.5f) / FakeToScreenY;
 					}
 					++LineCount;
 					if(TextContainer.m_MaxLines > 0 && LineCount > TextContainer.m_MaxLines)
@@ -1686,8 +1686,8 @@ public:
 				DrawY += Size;
 				if((RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGMENT) == 0)
 				{
-					DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
-					DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
+					DrawX = (int)((DrawX * FakeToScreenX) + 0.5f) / FakeToScreenX; // realign
+					DrawY = (int)((DrawY * FakeToScreenY) + 0.5f) / FakeToScreenY;
 				}
 				++LineCount;
 			}
@@ -1744,7 +1744,7 @@ public:
 			Graphics()->SetColor(1.f, 1.f, 1.f, 1.f);
 			Graphics()->RenderQuadContainer(TextContainer.m_StringInfo.m_SelectionQuadContainerIndex, 1, -1);
 
-			static int64 s_CursorRenderTime = time_get_microseconds();
+			static int64_t s_CursorRenderTime = time_get_microseconds();
 
 			if((time_get_microseconds() - s_CursorRenderTime) > 500000)
 				Graphics()->RenderQuadContainer(TextContainer.m_StringInfo.m_SelectionQuadContainerIndex, 0, 1);
@@ -1818,8 +1818,8 @@ public:
 		{
 			float FakeToScreenX = (Graphics()->ScreenWidth() / (ScreenX1 - ScreenX0));
 			float FakeToScreenY = (Graphics()->ScreenHeight() / (ScreenY1 - ScreenY0));
-			int ActualX = (int)((TextContainer.m_X + X) * FakeToScreenX);
-			int ActualY = (int)((TextContainer.m_Y + Y) * FakeToScreenY);
+			int ActualX = (int)(((TextContainer.m_X + X) * FakeToScreenX) + 0.5f);
+			int ActualY = (int)(((TextContainer.m_Y + Y) * FakeToScreenY) + 0.5f);
 			float AlignedX = ActualX / FakeToScreenX;
 			float AlignedY = ActualY / FakeToScreenY;
 			X = AlignedX - TextContainer.m_AlignedStartX;

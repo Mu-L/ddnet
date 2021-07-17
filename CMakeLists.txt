@@ -1081,6 +1081,7 @@ set(EXPECTED_DATA
   emoticons.png
   file_icons.png
   fonts/DejaVuSans.ttf
+  fonts/GlowSansJCompressed-Book.otf
   fonts/Icons.ttf
   fonts/SourceHanSansSC-Regular.otf
   game.png
@@ -1464,14 +1465,14 @@ set_src(BASE GLOB_RECURSE src/base
   color.h
   detect.h
   dynamic.h
-  hash.c
+  hash.cpp
   hash.h
-  hash_bundled.c
+  hash_bundled.cpp
   hash_ctxt.h
-  hash_libtomcrypt.c
-  hash_openssl.c
+  hash_libtomcrypt.cpp
+  hash_openssl.cpp
   math.h
-  system.c
+  system.cpp
   system.h
   tl/algorithm.h
   tl/allocator.h
@@ -1481,9 +1482,9 @@ set_src(BASE GLOB_RECURSE src/base
   tl/sorted_array.h
   tl/string.h
   tl/threading.h
-  unicode/confusables.c
+  unicode/confusables.cpp
   unicode/confusables_data.h
-  unicode/tolower.c
+  unicode/tolower.cpp
   unicode/tolower_data.h
   vmath.h
 )
@@ -1508,6 +1509,7 @@ set_src(ENGINE_INTERFACE GLOB src/engine
   server.h
   serverbrowser.h
   sound.h
+  sqlite.h
   steam.h
   storage.h
   textrender.h
@@ -1571,7 +1573,8 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   protocol_ex_msgs.h
   ringbuffer.cpp
   ringbuffer.h
-  serverbrowser.cpp
+  serverinfo.cpp
+  serverinfo.h
   snapshot.cpp
   snapshot.h
   storage.cpp
@@ -1645,6 +1648,7 @@ set(DEPS ${DEP_JSON} ${DEP_MD5} ${ZLIB_DEP})
 # Libraries
 set(LIBS
   ${CRYPTO_LIBRARIES}
+  ${SQLite3_LIBRARIES}
   ${WEBSOCKETS_LIBRARIES}
   ${ZLIB_LIBRARIES}
   ${PLATFORM_LIBS}
@@ -1686,7 +1690,24 @@ if(CLIENT)
   add_library(${TARGET_STEAMAPI} ${STEAMAPI_KIND} ${STEAMAPI_SRC})
   list(APPEND TARGETS_OWN ${TARGET_STEAMAPI})
 
-  set_src(ENGINE_CLIENT GLOB src/engine/client
+  set_src(ENGINE_CLIENT GLOB_RECURSE src/engine/client
+    backend/glsl_shader_compiler.cpp
+    backend/glsl_shader_compiler.h
+    backend/opengl/backend_opengl.cpp
+    backend/opengl/backend_opengl.h
+    backend/opengl/backend_opengl3.cpp
+    backend/opengl/backend_opengl3.h
+    backend/opengl/opengl_sl.cpp
+    backend/opengl/opengl_sl.h
+    backend/opengl/opengl_sl_program.cpp
+    backend/opengl/opengl_sl_program.h
+    backend/opengles/backend_opengles.cpp
+    backend/opengles/backend_opengles.h
+    backend/opengles/backend_opengles3.cpp
+    backend/opengles/backend_opengles3.h
+    backend/opengles/gles_class_defines.h
+    backend/opengles/opengles_sl.cpp
+    backend/opengles/opengles_sl_program.cpp
     backend_sdl.cpp
     backend_sdl.h
     blocklist_driver.cpp
@@ -1700,6 +1721,7 @@ if(CLIENT)
     friends.h
     ghost.cpp
     ghost.h
+    graphics_defines.h
     graphics_threaded.cpp
     graphics_threaded.h
     http.cpp
@@ -1709,14 +1731,15 @@ if(CLIENT)
     keynames.h
     notifications.cpp
     notifications.h
-    opengl_sl.cpp
-    opengl_sl.h
-    opengl_sl_program.cpp
-    opengl_sl_program.h
     serverbrowser.cpp
     serverbrowser.h
+    serverbrowser_http.cpp
+    serverbrowser_http.h
+    serverbrowser_ping_cache.cpp
+    serverbrowser_ping_cache.h
     sound.cpp
     sound.h
+    sqlite.cpp
     steam.cpp
     text.cpp
     updater.cpp
@@ -1826,6 +1849,8 @@ if(CLIENT)
     skin.h
     ui.cpp
     ui.h
+    ui_ex.cpp
+    ui_ex.h
   )
   set_src(GAME_EDITOR GLOB src/game/editor
     auto_map.cpp
@@ -2063,7 +2088,6 @@ endif()
 set(LIBS_SERVER
   ${LIBS}
   ${MYSQL_LIBRARIES}
-  ${SQLite3_LIBRARIES}
   ${TARGET_ANTIBOT}
   ${MINIUPNPC_LIBRARIES}
   # Add pthreads (on non-Windows) at the end, so that other libraries can depend
@@ -2189,6 +2213,10 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     netaddr.cpp
     packer.cpp
     prng.cpp
+    secure_random.cpp
+    serverbrowser.cpp
+    serverinfo.cpp
+    sorted_array.cpp
     str.cpp
     strip_path_and_extension.cpp
     teehistorian.cpp
@@ -2201,6 +2229,15 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
   set(TESTS_EXTRA
     src/engine/client/blocklist_driver.cpp
     src/engine/client/blocklist_driver.h
+    src/engine/client/http.cpp
+    src/engine/client/http.h
+    src/engine/client/serverbrowser.cpp
+    src/engine/client/serverbrowser.h
+    src/engine/client/serverbrowser_http.cpp
+    src/engine/client/serverbrowser_http.h
+    src/engine/client/serverbrowser_ping_cache.cpp
+    src/engine/client/serverbrowser_ping_cache.h
+    src/engine/client/sqlite.cpp
     src/engine/server/name_ban.cpp
     src/engine/server/name_ban.h
     src/game/server/teehistorian.cpp
@@ -2215,8 +2252,8 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     $<TARGET_OBJECTS:game-shared>
     ${DEPS}
   )
-  target_link_libraries(${TARGET_TESTRUNNER} ${LIBS} ${GTEST_LIBRARIES})
-  target_include_directories(${TARGET_TESTRUNNER} PRIVATE ${GTEST_INCLUDE_DIRS})
+  target_link_libraries(${TARGET_TESTRUNNER} ${LIBS} ${CURL_LIBRARIES} ${GTEST_LIBRARIES})
+  target_include_directories(${TARGET_TESTRUNNER} PRIVATE ${CURL_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS})
 
   list(APPEND TARGETS_OWN ${TARGET_TESTRUNNER})
   list(APPEND TARGETS_LINK ${TARGET_TESTRUNNER})

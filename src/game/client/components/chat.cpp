@@ -102,7 +102,7 @@ void CChat::Reset()
 	m_CurrentLine = 0;
 	DisableMode();
 
-	for(long long &LastSoundPlayed : m_aLastSoundPlayed)
+	for(int64_t &LastSoundPlayed : m_aLastSoundPlayed)
 		LastSoundPlayed = 0;
 }
 
@@ -552,7 +552,7 @@ void CChat::OnMessage(int MsgType, void *pRawMsg)
 
 bool CChat::LineShouldHighlight(const char *pLine, const char *pName)
 {
-	const char *pHL = str_find_nocase(pLine, pName);
+	const char *pHL = str_utf8_find_nocase(pLine, pName);
 
 	if(pHL)
 	{
@@ -846,7 +846,7 @@ void CChat::AddLine(int ClientID, int Team, const char *pLine)
 	}
 
 	// play sound
-	int64 Now = time();
+	int64_t Now = time();
 	if(ClientID == -1)
 	{
 		if(Now - m_aLastSoundPlayed[CHAT_SERVER] >= time_freq() * 3 / 10)
@@ -940,7 +940,7 @@ void CChat::OnPrepareLines()
 		RealMsgPaddingTee = 0;
 	}
 
-	int64 Now = time();
+	int64_t Now = time();
 	float LineWidth = (IsScoreBoardOpen ? 85.0f : 200.0f) - (RealMsgPaddingX * 1.5f) - RealMsgPaddingTee;
 
 	float HeightLimit = IsScoreBoardOpen ? 180.0f : m_PrevShowChat ? 50.0f : 200.0f;
@@ -1257,7 +1257,7 @@ void CChat::OnRender()
 	float ScreenRatio = Graphics()->ScreenAspect();
 	bool IsScoreBoardOpen = m_pClient->m_pScoreboard->Active() && (ScreenRatio > 1.7f); // only assume scoreboard when screen ratio is widescreen(something around 16:9)
 
-	int64 Now = time();
+	int64_t Now = time();
 	float HeightLimit = IsScoreBoardOpen ? 180.0f : m_PrevShowChat ? 50.0f : 200.0f;
 	int OffsetType = IsScoreBoardOpen ? 1 : 0;
 

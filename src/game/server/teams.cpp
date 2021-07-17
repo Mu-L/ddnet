@@ -355,9 +355,9 @@ bool CGameTeams::TeamFinished(int Team)
 	return true;
 }
 
-int64 CGameTeams::TeamMask(int Team, int ExceptID, int Asker)
+int64_t CGameTeams::TeamMask(int Team, int ExceptID, int Asker)
 {
-	int64 Mask = 0;
+	int64_t Mask = 0;
 
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
@@ -873,7 +873,7 @@ void CGameTeams::OnCharacterDeath(int ClientID, int Weapon)
 		return;
 	bool Locked = TeamLocked(Team) && Weapon != WEAPON_GAME;
 
-	if(g_Config.m_SvTeam == 3)
+	if(g_Config.m_SvTeam == 3 && Team != TEAM_SUPER)
 	{
 		ChangeTeamState(Team, CGameTeams::TEAMSTATE_OPEN);
 		ResetRoundState(Team);

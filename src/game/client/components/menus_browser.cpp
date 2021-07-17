@@ -31,6 +31,27 @@ static const int g_OffsetColPlayers = g_OffsetColMap + 3;
 static const int g_OffsetColPing = g_OffsetColPlayers + 3;
 static const int g_OffsetColVersion = g_OffsetColPing + 3;
 
+void FormatServerbrowserPing(char *pBuffer, int BufferLength, const CServerInfo *pInfo)
+{
+	if(!pInfo->m_LatencyIsEstimated)
+	{
+		str_format(pBuffer, BufferLength, "%d", pInfo->m_Latency);
+		return;
+	}
+	static const char *LOCATION_NAMES[CServerInfo::NUM_LOCS] = {
+		"", // LOC_UNKNOWN
+		"AFR", // LOC_AFRICA // Localize("AFR")
+		"ASI", // LOC_ASIA // Localize("ASI")
+		"AUS", // LOC_AUSTRALIA // Localize("AUS")
+		"EUR", // LOC_EUROPE // Localize("EUR")
+		"NA", // LOC_NORTH_AMERICA // Localize("NA")
+		"SA", // LOC_SOUTH_AMERICA // Localize("SA")
+		"CHN", // LOC_CHINA // Localize("CHN")
+	};
+	dbg_assert(0 <= pInfo->m_Location && pInfo->m_Location < CServerInfo::NUM_LOCS, "location out of range");
+	str_format(pBuffer, BufferLength, "%s", Localize(LOCATION_NAMES[pInfo->m_Location]));
+}
+
 void CMenus::RenderServerbrowserServerList(CUIRect View)
 {
 	CUIRect Headers;
@@ -157,8 +178,8 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	{
 		CUIRect MsgBox = View;
 
-		if(m_ActivePage == PAGE_INTERNET && ServerBrowser()->IsRefreshingMasters())
-			UI()->DoLabelScaled(&MsgBox, Localize("Refreshing master servers"), 16.0f, 0);
+		if(ServerBrowser()->IsGettingServerlist())
+			UI()->DoLabelScaled(&MsgBox, Localize("Getting server list from master server"), 16.0f, 0);
 		else if(!ServerBrowser()->NumServers())
 			UI()->DoLabelScaled(&MsgBox, Localize("No servers found"), 16.0f, 0);
 		else if(ServerBrowser()->NumServers() && !NumServers)
@@ -337,7 +358,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit & IServerBrowser::QUICK_SERVERNAME))
 				{
 					// highlight the parts that matches
-					const char *pStr = str_find_nocase(pItem->m_aName, g_Config.m_BrFilterString);
+					const char *pStr = str_utf8_find_nocase(pItem->m_aName, g_Config.m_BrFilterString);
 					if(pStr)
 					{
 						UI()->DoLabelStreamed(*pItem->m_pUIElement->Get(g_OffsetColName + 0), &Button, pItem->m_aName, FontSize, -1, Button.w, 1, true, (int)(pStr - pItem->m_aName));
@@ -370,7 +391,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit & IServerBrowser::QUICK_MAPNAME))
 				{
 					// highlight the parts that matches
-					const char *pStr = str_find_nocase(pItem->m_aMap, g_Config.m_BrFilterString);
+					const char *pStr = str_utf8_find_nocase(pItem->m_aMap, g_Config.m_BrFilterString);
 					if(pStr)
 					{
 						UI()->DoLabelStreamed(*pItem->m_pUIElement->Get(g_OffsetColMap + 0), &Button, pItem->m_aMap, FontSize, -1, Button.w, 1, true, (int)(pStr - pItem->m_aMap));
@@ -405,7 +426,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			}
 			else if(ID == COL_PING)
 			{
-				str_format(aTemp, sizeof(aTemp), "%i", pItem->m_Latency);
+				FormatServerbrowserPing(aTemp, sizeof(aTemp), pItem);
 				if(g_Config.m_UiColorizePing)
 				{
 					ColorRGBA rgb = color_cast<ColorRGBA>(ColorHSLA((300.0f - clamp(pItem->m_Latency, 0, 300)) / 1000.0f, 1.0f, 0.5f));
@@ -466,7 +487,10 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 		if(Input()->MouseDoubleClick() && DoubleClicked)
 		{
 			if(Client()->State() == IClient::STATE_ONLINE && Client()->GetCurrentRaceTime() / 60 >= g_Config.m_ClConfirmDisconnectTime && g_Config.m_ClConfirmDisconnectTime >= 0)
-				m_Popup = POPUP_DISCONNECT;
+			{
+				m_Popup = POPUP_SWITCH_SERVER;
+				str_copy(m_aNextServer, g_Config.m_UiServerAddress, sizeof(m_aNextServer));
+			}
 			else
 				Client()->Connect(g_Config.m_UiServerAddress);
 		}
@@ -606,13 +630,13 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
 			else if(g_Config.m_UiPage == PAGE_DDNET)
 			{
-				// start a new serverlist request
+				// start a new server list request
 				Client()->RequestDDNetInfo();
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_DDNET);
 			}
 			else if(g_Config.m_UiPage == PAGE_KOG)
 			{
-				// start a new serverlist request
+				// start a new server list request
 				Client()->RequestDDNetInfo();
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_KOG);
 			}
@@ -626,7 +650,10 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			m_EnterPressed)
 		{
 			if(Client()->State() == IClient::STATE_ONLINE && Client()->GetCurrentRaceTime() / 60 >= g_Config.m_ClConfirmDisconnectTime && g_Config.m_ClConfirmDisconnectTime >= 0)
-				m_Popup = POPUP_DISCONNECT;
+			{
+				m_Popup = POPUP_SWITCH_SERVER;
+				str_copy(m_aNextServer, g_Config.m_UiServerAddress, sizeof(m_aNextServer));
+			}
 			else
 				Client()->Connect(g_Config.m_UiServerAddress);
 			m_EnterPressed = false;
@@ -1017,14 +1044,34 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 		{
 			CUIRect Button;
 			ServerDetails.HSplitBottom(20.0f, &ServerDetails, &Button);
-			Button.VSplitLeft(5.0f, 0, &Button);
+			CUIRect ButtonAddFav;
+			CUIRect ButtonLeakIp;
+			Button.VSplitMid(&ButtonAddFav, &ButtonLeakIp);
+			ButtonAddFav.VSplitLeft(5.0f, 0, &ButtonAddFav);
 			static int s_AddFavButton = 0;
-			if(DoButton_CheckBox(&s_AddFavButton, Localize("Favorite"), pSelectedServer->m_Favorite, &Button))
+			static int s_LeakIpButton = 0;
+			if(DoButton_CheckBox(&s_AddFavButton, Localize("Favorite"), pSelectedServer->m_Favorite, &ButtonAddFav))
 			{
 				if(pSelectedServer->m_Favorite)
+				{
 					ServerBrowser()->RemoveFavorite(pSelectedServer->m_NetAddr);
+				}
 				else
+				{
 					ServerBrowser()->AddFavorite(pSelectedServer->m_NetAddr);
+					if(g_Config.m_UiPage == PAGE_LAN)
+					{
+						ServerBrowser()->FavoriteAllowPing(pSelectedServer->m_NetAddr, true);
+					}
+				}
+			}
+			if(pSelectedServer->m_Favorite)
+			{
+				bool IpLeak = ServerBrowser()->IsFavoritePingAllowed(pSelectedServer->m_NetAddr);
+				if(DoButton_CheckBox(&s_LeakIpButton, Localize("Leak IP"), IpLeak, &ButtonLeakIp))
+				{
+					ServerBrowser()->FavoriteAllowPing(pSelectedServer->m_NetAddr, !IpLeak);
+				}
 			}
 		}
 
@@ -1048,7 +1095,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 		TextRender()->TextEx(&Cursor, pSelectedServer->m_aGameType, -1);
 
 		char aTemp[16];
-		str_format(aTemp, sizeof(aTemp), "%d", pSelectedServer->m_Latency);
+		FormatServerbrowserPing(aTemp, sizeof(aTemp), pSelectedServer);
 		RightColumn.HSplitTop(15.0f, &Row, &RightColumn);
 		TextRender()->SetCursor(&Cursor, Row.x, Row.y + (15.f - FontSize) / 2.f, FontSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
 		Cursor.m_LineWidth = Row.w;
@@ -1103,7 +1150,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 				if(pSelectedServer->m_aClients[i].m_Score == -9999 || pSelectedServer->m_aClients[i].m_Score == 0)
 					aTemp[0] = 0;
 				else
-					str_time((int64)abs(pSelectedServer->m_aClients[i].m_Score) * 100, TIME_HOURS, aTemp, sizeof(aTemp));
+					str_time((int64_t)abs(pSelectedServer->m_aClients[i].m_Score) * 100, TIME_HOURS, aTemp, sizeof(aTemp));
 			}
 			else
 				str_format(aTemp, sizeof(aTemp), "%d", pSelectedServer->m_aClients[i].m_Score);
@@ -1123,7 +1170,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 			if(g_Config.m_BrFilterString[0])
 			{
 				// highlight the parts that matches
-				const char *s = str_find_nocase(pName, g_Config.m_BrFilterString);
+				const char *s = str_utf8_find_nocase(pName, g_Config.m_BrFilterString);
 				if(s)
 				{
 					TextRender()->TextEx(&Cursor, pName, (int)(s - pName));
@@ -1145,7 +1192,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 			if(g_Config.m_BrFilterString[0])
 			{
 				// highlight the parts that matches
-				const char *s = str_find_nocase(pClan, g_Config.m_BrFilterString);
+				const char *s = str_utf8_find_nocase(pClan, g_Config.m_BrFilterString);
 				if(s)
 				{
 					TextRender()->TextEx(&Cursor, pClan, (int)(s - pClan));

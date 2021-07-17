@@ -295,7 +295,7 @@ void CGameClient::OnInit()
 
 	m_RenderTools.Init(Graphics(), UI(), this);
 
-	int64 Start = time_get();
+	int64_t Start = time_get();
 
 	if(GIT_SHORTREV_HASH)
 	{
@@ -379,7 +379,7 @@ void CGameClient::OnInit()
 		}
 	}
 
-	int64 End = time_get();
+	int64_t End = time_get();
 	str_format(aBuf, sizeof(aBuf), "initialisation finished after %.2fms", ((End - Start) * 1000) / (float)time_freq());
 	Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "gameclient", aBuf);
 
@@ -539,6 +539,15 @@ void CGameClient::OnReset()
 {
 	m_LastNewPredictedTick[0] = -1;
 	m_LastNewPredictedTick[1] = -1;
+
+	m_LocalTuneZone[0] = 0;
+	m_LocalTuneZone[1] = 0;
+
+	m_ExpectingTuningForZone[0] = -1;
+	m_ExpectingTuningForZone[1] = -1;
+
+	m_ReceivedTuning[0] = false;
+	m_ReceivedTuning[1] = false;
 
 	InvalidateSnapshot();
 
@@ -782,6 +791,7 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker, bool IsDummy)
 
 		m_ServerMode = SERVERMODE_PURE;
 
+		m_ReceivedTuning[IsDummy ? !g_Config.m_ClDummy : g_Config.m_ClDummy] = true;
 		// apply new tuning
 		m_Tuning[IsDummy ? !g_Config.m_ClDummy : g_Config.m_ClDummy] = NewTuning;
 		return;
@@ -1828,7 +1838,7 @@ void CGameClient::OnPredict()
 	{
 		int PredTime = clamp(Client()->GetPredictionTime(), 0, 800);
 		float SmoothPace = 4 - 1.5f * PredTime / 800.f; // smoothing pace (a lower value will make the smoothing quicker)
-		int64 Len = 1000 * PredTime * SmoothPace;
+		int64_t Len = 1000 * PredTime * SmoothPace;
 
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
@@ -1859,8 +1869,8 @@ void CGameClient::OnPredict()
 							MixAmount[j] = 1.f - powf(1.f - MixAmount[j], 1 / 1.2f);
 						}
 					}
-					int64 TimePassed = time_get() - m_aClients[i].m_SmoothStart[j];
-					if(in_range(TimePassed, (int64)0, Len - 1))
+					int64_t TimePassed = time_get() - m_aClients[i].m_SmoothStart[j];
+					if(in_range(TimePassed, (int64_t)0, Len - 1))
 						MixAmount[j] = minimum(MixAmount[j], (float)(TimePassed / (double)Len));
 				}
 				for(int j = 0; j < 2; j++)
@@ -1868,8 +1878,8 @@ void CGameClient::OnPredict()
 						MixAmount[j] = MixAmount[j ^ 1];
 				for(int j = 0; j < 2; j++)
 				{
-					int64 Remaining = minimum((1.f - MixAmount[j]) * Len, minimum(time_freq() * 0.700f, (1.f - MixAmount[j ^ 1]) * Len + time_freq() * 0.300f)); // don't smooth for longer than 700ms, or more than 300ms longer along one axis than the other axis
-					int64 Start = time_get() - (Len - Remaining);
+					int64_t Remaining = minimum((1.f - MixAmount[j]) * Len, minimum(time_freq() * 0.700f, (1.f - MixAmount[j ^ 1]) * Len + time_freq() * 0.300f)); // don't smooth for longer than 700ms, or more than 300ms longer along one axis than the other axis
+					int64_t Start = time_get() - (Len - Remaining);
 					if(!in_range(Start + Len, m_aClients[i].m_SmoothStart[j], m_aClients[i].m_SmoothStart[j] + Len))
 					{
 						m_aClients[i].m_SmoothStart[j] = Start;
@@ -2212,6 +2222,8 @@ ColorRGBA CalculateNameColor(ColorHSLA TextColorHSL)
 
 void CGameClient::UpdatePrediction()
 {
+	m_GameWorld.m_WorldConfig.m_UseTuneZones = m_GameInfo.m_PredictDDRaceTiles;
+
 	if(!m_Snap.m_pLocalCharacter)
 	{
 		if(CCharacter *pLocalChar = m_GameWorld.GetCharacterByID(m_Snap.m_LocalClientID))
@@ -2231,17 +2243,68 @@ void CGameClient::UpdatePrediction()
 	m_GameWorld.m_WorldConfig.m_IsSolo = !m_Snap.m_aCharacters[m_Snap.m_LocalClientID].m_HasExtendedData && !m_Tuning[g_Config.m_ClDummy].m_PlayerCollision && !m_Tuning[g_Config.m_ClDummy].m_PlayerHooking;
 
 	// update the tuning/tunezone at the local character position with the latest tunings received before the new snapshot
-	int TuneZone = Collision()->IsTune(Collision()->GetMapIndex(vec2(m_Snap.m_pLocalCharacter->m_X, m_Snap.m_pLocalCharacter->m_Y)));
-	if(!TuneZone || !m_GameWorld.m_WorldConfig.m_PredictTiles)
-		m_GameWorld.m_Tuning[g_Config.m_ClDummy] = m_Tuning[g_Config.m_ClDummy];
+	vec2 LocalCharPos = vec2(m_Snap.m_pLocalCharacter->m_X, m_Snap.m_pLocalCharacter->m_Y);
+	m_GameWorld.m_Core.m_Tuning[g_Config.m_ClDummy] = m_Tuning[g_Config.m_ClDummy];
+
+	int TuneZone = 0;
+	if(m_GameWorld.m_WorldConfig.m_UseTuneZones)
+	{
+		TuneZone = Collision()->IsTune(Collision()->GetMapIndex(LocalCharPos));
+
+		if(TuneZone != m_LocalTuneZone[g_Config.m_ClDummy])
+		{
+			// our tunezone changed, expecting tuning message
+			m_LocalTuneZone[g_Config.m_ClDummy] = m_ExpectingTuningForZone[g_Config.m_ClDummy] = TuneZone;
+			m_ExpectingTuningSince[g_Config.m_ClDummy] = 0;
+		}
+
+		if(m_ExpectingTuningForZone[g_Config.m_ClDummy] >= 0)
+		{
+			if(m_ReceivedTuning[g_Config.m_ClDummy])
+			{
+				dbg_msg("tunezone", "got tuning for zone %d", m_ExpectingTuningForZone[g_Config.m_ClDummy]);
+				m_GameWorld.TuningList()[m_ExpectingTuningForZone[g_Config.m_ClDummy]] = m_Tuning[g_Config.m_ClDummy];
+				m_ReceivedTuning[g_Config.m_ClDummy] = false;
+				m_ExpectingTuningForZone[g_Config.m_ClDummy] = -1;
+			}
+			else if(m_ExpectingTuningSince[g_Config.m_ClDummy] >= 5)
+			{
+				// if we are expecting tuning for more than 10 snaps (less than a quarter of a second)
+				// it is probably dropped or it was received out of order
+				// or applied to another tunezone.
+				// we need to fallback to current tuning to fix ourselves.
+				m_ExpectingTuningForZone[g_Config.m_ClDummy] = -1;
+				m_ExpectingTuningSince[g_Config.m_ClDummy] = 0;
+				m_ReceivedTuning[g_Config.m_ClDummy] = false;
+				dbg_msg("tunezone", "the tuning was missed");
+			}
+			else
+			{
+				// if we are expecting tuning and have not received one yet.
+				// do not update any tuning, so we don't apply it to the wrong tunezone.
+				dbg_msg("tunezone", "waiting for tuning for zone %d", m_ExpectingTuningForZone[g_Config.m_ClDummy]);
+				m_ExpectingTuningSince[g_Config.m_ClDummy]++;
+			}
+		}
+		else
+		{
+			// if we have processed what we need, and the tuning is still wrong due to out of order messege
+			// fix our tuning by using the current one
+			m_GameWorld.TuningList()[TuneZone] = m_Tuning[g_Config.m_ClDummy];
+			m_ExpectingTuningSince[g_Config.m_ClDummy] = 0;
+			m_ReceivedTuning[g_Config.m_ClDummy] = false;
+		}
+	}
 	else
-		m_GameWorld.TuningList()[TuneZone] = m_GameWorld.m_Core.m_Tuning[g_Config.m_ClDummy] = m_Tuning[g_Config.m_ClDummy];
+	{
+		m_GameWorld.TuningList()[0] = m_Tuning[g_Config.m_ClDummy];
+	}
 
 	// if ddnetcharacter is available, ignore server-wide tunings for hook and collision
 	if(m_Snap.m_aCharacters[m_Snap.m_LocalClientID].m_HasExtendedData)
 	{
-		m_GameWorld.m_Tuning[g_Config.m_ClDummy].m_PlayerCollision = 1;
-		m_GameWorld.m_Tuning[g_Config.m_ClDummy].m_PlayerHooking = 1;
+		m_GameWorld.m_Core.m_Tuning[g_Config.m_ClDummy].m_PlayerCollision = 1;
+		m_GameWorld.m_Core.m_Tuning[g_Config.m_ClDummy].m_PlayerHooking = 1;
 	}
 
 	// restore characters from previously saved ones if they temporarily left the snapshot
@@ -2518,12 +2581,12 @@ void CGameClient::DetectStrongHook()
 vec2 CGameClient::GetSmoothPos(int ClientID)
 {
 	vec2 Pos = mix(m_aClients[ClientID].m_PrevPredicted.m_Pos, m_aClients[ClientID].m_Predicted.m_Pos, Client()->PredIntraGameTick(g_Config.m_ClDummy));
-	int64 Now = time_get();
+	int64_t Now = time_get();
 	for(int i = 0; i < 2; i++)
 	{
-		int64 Len = clamp(m_aClients[ClientID].m_SmoothLen[i], (int64)1, time_freq());
-		int64 TimePassed = Now - m_aClients[ClientID].m_SmoothStart[i];
-		if(in_range(TimePassed, (int64)0, Len - 1))
+		int64_t Len = clamp(m_aClients[ClientID].m_SmoothLen[i], (int64_t)1, time_freq());
+		int64_t TimePassed = Now - m_aClients[ClientID].m_SmoothStart[i];
+		if(in_range(TimePassed, (int64_t)0, Len - 1))
 		{
 			float MixAmount = 1.f - powf(1.f - TimePassed / (float)Len, 1.2f);
 			int SmoothTick;

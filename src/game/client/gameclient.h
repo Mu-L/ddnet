@@ -238,6 +238,10 @@ public:
 	};
 
 	CSnapState m_Snap;
+	int m_LocalTuneZone[2];
+	bool m_ReceivedTuning[2];
+	int m_ExpectingTuningForZone[2];
+	int m_ExpectingTuningSince[2];
 
 	// client data
 	struct CClientData
@@ -301,8 +305,8 @@ public:
 		vec2 m_RenderPos;
 		bool m_IsPredicted;
 		bool m_IsPredictedLocal;
-		int64 m_SmoothStart[2];
-		int64 m_SmoothLen[2];
+		int64_t m_SmoothStart[2];
+		int64_t m_SmoothLen[2];
 		vec2 m_PredPos[200];
 		int m_PredTick[200];
 		bool m_SpecCharPresent;
@@ -446,6 +450,7 @@ public:
 	bool AntiPingGunfire() { return AntiPingGrenade() && AntiPingWeapons() && g_Config.m_ClAntiPingGunfire; }
 	bool Predict() { return g_Config.m_ClPredict && !(m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER) && !m_Snap.m_SpecInfo.m_Active && Client()->State() != IClient::STATE_DEMOPLAYBACK && m_Snap.m_pLocalCharacter; }
 	bool PredictDummy() { return g_Config.m_ClPredictDummy && Client()->DummyConnected() && m_Snap.m_LocalClientID >= 0 && m_PredictedDummyID >= 0 && !m_aClients[m_PredictedDummyID].m_Paused; }
+	CTuningParams GetTunes(int i) { return m_aTuningList[i]; }
 
 	CGameWorld m_GameWorld;
 	CGameWorld m_PredictedWorld;

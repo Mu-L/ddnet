@@ -419,9 +419,6 @@ Show name plates
 Show only chat messages from friends
 == Προβολή μηνυμάτων μόνο από φίλους
 
-Show only supported
-== Προβολή υποστηριζόμενων μόνο
-
 Skins
 == Στολές
 
@@ -958,7 +955,7 @@ Use OpenGL 3.3 (experimental)
 Preinit VBO (iGPUs only)
 == 
 
-Multiple texture units (disable for MacOS)
+Multiple texture units (disable for macOS)
 == 
 
 Use high DPI

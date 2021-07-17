@@ -35,7 +35,7 @@ CProjectile::CProjectile(
 	m_Number = Number;
 	m_Freeze = Freeze;
 
-	m_TuneZone = GameWorld()->m_WorldConfig.m_PredictTiles ? Collision()->IsTune(Collision()->GetMapIndex(m_Pos)) : 0;
+	m_TuneZone = GameWorld()->m_WorldConfig.m_UseTuneZones ? Collision()->IsTune(Collision()->GetMapIndex(m_Pos)) : 0;
 
 	GameWorld()->InsertEntity(this);
 }
@@ -86,7 +86,7 @@ void CProjectile::Tick()
 	if(m_LifeSpan > -1)
 		m_LifeSpan--;
 
-	int64 TeamMask = -1LL;
+	int64_t TeamMask = -1LL;
 	bool isWeaponCollide = false;
 	if(
 		pOwnerChar &&
@@ -105,7 +105,7 @@ void CProjectile::Tick()
 			GameWorld()->CreateExplosion(ColPos, m_Owner, m_Type, m_Owner == -1, (!pTargetChr ? -1 : pTargetChr->Team()),
 				(m_Owner != -1) ? TeamMask : -1LL);
 		}
-		else if(pTargetChr && m_Freeze && ((m_Layer == LAYER_SWITCH && m_Number > 0 && Collision()->m_pSwitchers[m_Number].m_Status[pTargetChr->Team()]) || m_Layer != LAYER_SWITCH))
+		else if(pTargetChr && m_Freeze)
 			pTargetChr->Freeze();
 		if(Collide && m_Bouncing != 0)
 		{
@@ -123,10 +123,10 @@ void CProjectile::Tick()
 		}
 		else if(m_Type == WEAPON_GUN)
 		{
-			GameWorld()->DestroyEntity(this);
+			m_MarkedForDestroy = true;
 		}
 		else if(!m_Freeze)
-			GameWorld()->DestroyEntity(this);
+			m_MarkedForDestroy = true;
 	}
 	if(m_LifeSpan == -1)
 	{
@@ -135,12 +135,12 @@ void CProjectile::Tick()
 			if(m_Owner >= 0)
 				pOwnerChar = GameWorld()->GetCharacterByID(m_Owner);
 
-			int64 TeamMask = -1LL;
+			int64_t TeamMask = -1LL;
 
 			GameWorld()->CreateExplosion(ColPos, m_Owner, m_Type, m_Owner == -1, (!pOwnerChar ? -1 : pOwnerChar->Team()),
 				(m_Owner != -1) ? TeamMask : -1LL);
 		}
-		GameWorld()->DestroyEntity(this);
+		m_MarkedForDestroy = true;
 	}
 }
 
@@ -172,7 +172,7 @@ CProjectile::CProjectile(CGameWorld *pGameWorld, int ID, CProjectileData *pProj)
 	}
 	m_Type = pProj->m_Type;
 	m_StartTick = pProj->m_StartTick;
-	m_TuneZone = GameWorld()->m_WorldConfig.m_PredictTiles ? Collision()->IsTune(Collision()->GetMapIndex(m_Pos)) : 0;
+	m_TuneZone = pProj->m_TuneZone;
 
 	int Lifetime = 20 * GameWorld()->GameTickSpeed();
 	m_SoundImpact = -1;
@@ -187,6 +187,8 @@ CProjectile::CProjectile(CGameWorld *pGameWorld, int ID, CProjectileData *pProj)
 		Lifetime = GetTuning(m_TuneZone)->m_ShotgunLifetime * GameWorld()->GameTickSpeed();
 	m_LifeSpan = Lifetime - (pGameWorld->GameTick() - m_StartTick);
 	m_ID = ID;
+	m_Layer = LAYER_GAME;
+	m_Number = 0;
 }
 
 CProjectileData CProjectile::GetData() const
@@ -201,6 +203,7 @@ CProjectileData CProjectile::GetData() const
 	Result.m_Explosive = m_Explosive;
 	Result.m_Bouncing = m_Bouncing;
 	Result.m_Freeze = m_Freeze;
+	Result.m_TuneZone = m_TuneZone;
 	return Result;
 }
 

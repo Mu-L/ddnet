@@ -15,6 +15,7 @@
 
 #include <game/client/component.h>
 #include <game/client/ui.h>
+#include <game/client/ui_ex.h>
 #include <game/voting.h>
 
 struct CServerProcess
@@ -70,6 +71,8 @@ class CMenus : public CComponent
 
 	char m_aLocalStringHelper[1024];
 
+	CUIEx m_UIEx;
+
 	float ButtonColorMulActive() { return 0.5f; }
 	float ButtonColorMulHot() { return 1.5f; }
 	float ButtonColorMulDefault() { return 1.0f; }
@@ -108,7 +111,7 @@ class CMenus : public CComponent
 	//static int ui_do_edit_box(void *id, const CUIRect *rect, char *str, unsigned str_size, float font_size, bool hidden=false);
 
 	float DoScrollbarV(const void *pID, const CUIRect *pRect, float Current);
-	float DoScrollbarH(const void *pID, const CUIRect *pRect, float Current);
+	float DoScrollbarH(const void *pID, const CUIRect *pRect, float Current, bool ColorPickerSlider = false, ColorRGBA *pColorInner = NULL);
 	void DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	int DoKeyReader(void *pID, const CUIRect *pRect, int Key, int Modifier, int *NewModifier);
 
@@ -287,7 +290,9 @@ protected:
 	vec2 m_MousePos;
 	bool m_MouseSlow;
 
-	int64 m_LastInput;
+	char m_aNextServer[256];
+
+	int64_t m_LastInput;
 
 	// images
 	struct CMenuImage
@@ -347,7 +352,7 @@ protected:
 	bool m_DeletePressed;
 
 	// for map download popup
-	int64 m_DownloadLastCheckTime;
+	int64_t m_DownloadLastCheckTime;
 	int m_DownloadLastCheckSize;
 	float m_DownloadSpeed;
 
@@ -646,10 +651,10 @@ public:
 	int GetCurPopup() { return m_Popup; }
 	bool CanDisplayWarning();
 
-	void PopupWarning(const char *pTopic, const char *pBody, const char *pButton, int64 Duration);
+	void PopupWarning(const char *pTopic, const char *pBody, const char *pButton, int64_t Duration);
 
-	int64 m_PopupWarningLastTime;
-	int64 m_PopupWarningDuration;
+	int64_t m_PopupWarningLastTime;
+	int64_t m_PopupWarningDuration;
 
 	int m_DemoPlayerState;
 	char m_aDemoPlayerPopupHint[256];
@@ -676,6 +681,7 @@ public:
 		POPUP_DISCONNECT,
 		POPUP_DISCONNECT_DUMMY,
 		POPUP_WARNING,
+		POPUP_SWITCH_SERVER,
 
 		// demo player states
 		DEMOPLAYER_NONE = 0,
@@ -695,7 +701,7 @@ private:
 	void RenderSettingsDDNet(CUIRect MainView);
 	void RenderSettingsHUD(CUIRect MainView);
 	ColorHSLA RenderHSLColorPicker(const CUIRect *pRect, unsigned int *pColor, bool Alpha);
-	ColorHSLA RenderHSLScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha = false);
+	ColorHSLA RenderHSLScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha = false, bool ClampedLight = false);
 
 	int RenderDropDown(int &CurDropDownState, CUIRect *pRect, int CurSelection, const void **pIDs, const char **pStr, int PickNum, const void *pID, float &ScrollVal);
 
