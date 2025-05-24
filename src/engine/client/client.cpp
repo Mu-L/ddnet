@@ -64,6 +64,8 @@
 
 #if defined(CONF_PLATFORM_ANDROID)
 #include <android/android_main.h>
+#elif defined(CONF_PLATFORM_EMSCRIPTEN)
+#include <emscripten/emscripten.h>
 #endif
 
 #include "SDL.h"
@@ -2361,8 +2363,7 @@ void CClient::FinishMapDownload()
 	SHA256_DIGEST *pSha256 = m_MapdownloadSha256Present ? &m_MapdownloadSha256 : nullptr;
 
 	bool FileSuccess = true;
-	if(Storage()->FileExists(m_aMapdownloadFilename, IStorage::TYPE_SAVE))
-		FileSuccess &= Storage()->RemoveFile(m_aMapdownloadFilename, IStorage::TYPE_SAVE);
+	FileSuccess &= Storage()->RemoveFile(m_aMapdownloadFilename, IStorage::TYPE_SAVE);
 	FileSuccess &= Storage()->RenameFile(m_aMapdownloadFilenameTemp, m_aMapdownloadFilename, IStorage::TYPE_SAVE);
 	if(!FileSuccess)
 	{
@@ -3034,7 +3035,6 @@ void CClient::Run()
 		g_UuidManager.DebugDump();
 	}
 
-#if !defined(CONF_PLATFORM_EMSCRIPTEN)
 	char aNetworkError[256];
 	if(!InitNetworkClient(aNetworkError, sizeof(aNetworkError)))
 	{
@@ -3042,7 +3042,6 @@ void CClient::Run()
 		ShowMessageBox("Network Error", aNetworkError);
 		return;
 	}
-#endif
 
 	if(!m_Http.Init(std::chrono::seconds{1}))
 	{
@@ -3408,21 +3407,21 @@ bool CClient::InitNetworkClient(char *pError, size_t ErrorSize)
 		}
 		BindAddr.port = PortRef;
 		unsigned RemainingAttempts = 25;
-		while(BindAddr.port == 0 || !m_aNetClient[i].Open(BindAddr))
+		while(!m_aNetClient[i].Open(BindAddr))
 		{
+			--RemainingAttempts;
+			if(RemainingAttempts == 0)
+			{
+				if(g_Config.m_Bindaddr[0])
+					str_format(pError, ErrorSize, "Could not open the network client, try changing or unsetting the bindaddr '%s'.", g_Config.m_Bindaddr);
+				else
+					str_copy(pError, "Could not open the network client.", ErrorSize);
+				return false;
+			}
 			if(BindAddr.port != 0)
 			{
-				--RemainingAttempts;
-				if(RemainingAttempts == 0)
-				{
-					if(g_Config.m_Bindaddr[0])
-						str_format(pError, ErrorSize, "Could not open the network client, try changing or unsetting the bindaddr '%s'.", g_Config.m_Bindaddr);
-					else
-						str_copy(pError, "Could not open the network client.", ErrorSize);
-					return false;
-				}
+				BindAddr.port = 0;
 			}
-			BindAddr.port = (secure_rand() % 64511) + 1024;
 		}
 	}
 	return true;
@@ -4674,7 +4673,7 @@ int main(int argc, const char **argv)
 		}
 	};
 	std::function<void()> PerformFinalCleanup = []() {
-#ifdef CONF_PLATFORM_ANDROID
+#if defined(CONF_PLATFORM_ANDROID)
 		// Forcefully terminate the entire process, to ensure that static variables
 		// will be initialized correctly when the app is started again after quitting.
 		// Returning from the main function is not enough, as this only results in the
@@ -4687,6 +4686,12 @@ int main(int argc, const char **argv)
 		//       ignores the activity lifecycle entirely, which may cause issues if
 		//       we ever used any global resources like the camera.
 		std::exit(0);
+#elif defined(CONF_PLATFORM_EMSCRIPTEN)
+		// Hide canvas after client quit as it will be entirely black without visible
+		// cursor, also blocking view of the console.
+		EM_ASM({
+			document.querySelector('#canvas').style.display = 'none';
+		});
 #endif
 	};
 	std::function<void()> PerformAllCleanup = [PerformCleanup, PerformFinalCleanup]() mutable {
