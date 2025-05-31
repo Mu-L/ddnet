@@ -2,6 +2,8 @@
 #include <engine/shared/config.h>
 #include <engine/textrender.h>
 
+#include <engine/shared/protocol7.h>
+
 #include <game/generated/client_data.h>
 
 #include <game/client/animstate.h>
@@ -305,7 +307,7 @@ public:
 class CNamePlatePartName : public CNamePlatePartText
 {
 private:
-	char m_aText[MAX_NAME_LENGTH] = "";
+	char m_aText[std::max<size_t>(MAX_NAME_LENGTH, protocol7::MAX_NAME_ARRAY_SIZE)] = "";
 	float m_FontSize = -INFINITY;
 
 protected:
@@ -334,7 +336,7 @@ public:
 class CNamePlatePartClan : public CNamePlatePartText
 {
 private:
-	char m_aText[MAX_CLAN_LENGTH] = "";
+	char m_aText[std::max<size_t>(MAX_CLAN_LENGTH, protocol7::MAX_CLAN_ARRAY_SIZE)] = "";
 	float m_FontSize = -INFINITY;
 
 protected:
@@ -838,7 +840,7 @@ void CNamePlates::OnRender()
 			RenderNamePlateGame(RenderPos, pInfo, 0.4f);
 		}
 		// Only render name plates for active characters
-		else if(GameClient()->m_Snap.m_aCharacters[i].m_Active)
+		if(GameClient()->m_Snap.m_aCharacters[i].m_Active)
 		{
 			const vec2 RenderPos = GameClient()->m_aClients[i].m_RenderPos;
 			RenderNamePlateGame(RenderPos, pInfo, 1.0f);
